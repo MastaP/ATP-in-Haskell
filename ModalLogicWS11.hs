@@ -71,12 +71,14 @@ ruleId (p:ps) | isAtom p && (Not p) `elem` ps     = [([],RuleId)]
 
 t1 = ruleId [q,(Not p),p]
 
---leftConjG3ip (Seq as [r]) = map (\x -> (x, LeftConj)) [ [Seq (p : q : delete f as) [r]] | f@(Conj p q) <- as]
-ruleConj fs = map (\x -> (x, RuleConj)) [ [l:r:delete f fs] | f@(Conj l r) <- fs]
+ruleConj fs = [([delConj fs], RuleConj)]
+
+delConj (Conj l r:fs) = l:r:delConj fs
+delConj (f:fs) = f:delConj fs
+delConj [] = [] 
 
 t2 = ruleConj [p,(Conj p q),q,(Not p),(Conj p (Not q))]
 
---leftDisjG3ip (Seq as [r]) = zip [ let as' = delete f as in [Seq (p:as') [r], Seq (q:as') [r]] | f@(Disj p q) <- as] (repeat LeftDisj)
 ruleDisj fs = [ (fs'',RuleDisj) | fs'' <- [ let fs' = delete f fs in [l:fs', r:fs'] | f@(Disj l r) <- fs]]
 
 t3 = ruleDisj [p,(Disj p q),q,(Not p),(Disj p (Not q))]
