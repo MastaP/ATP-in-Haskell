@@ -62,8 +62,6 @@ data Rule = RuleId | RuleConj | RuleDisj | RuleK deriving Show
 
 data Tree = Node [Prop] Rule [Tree] (Maybe Tree) deriving Show
 
---axiomG3ip (Seq as [p]) | isAtom p && p `elem` as = [([],Axiom)]
---id :: [Prop] -> 
 ruleId [] = []
 ruleId (p:ps) | isAtom p && (Not p) `elem` ps     = [([],RuleId)]
                | isNegAtom p && invert p `elem` ps = [([],RuleId)]
@@ -71,23 +69,19 @@ ruleId (p:ps) | isAtom p && (Not p) `elem` ps     = [([],RuleId)]
 
 t1 = ruleId [q,(Not p),p]
 
-ruleDisj fs = [ ([l:r:delete f fs],RuleDisj) | f@(Disj l r) <- fs]
+--ruleDisj fs = [ ([l:r:delete f fs],RuleDisj) | f@(Disj l r) <- fs]
+ruleDisj fs = let (ds,fs') = delDisj fs in if null ds then [] else [([ds ++ fs'],RuleDisj)]
 
-
---ruleDisj fs = case delDisj False fs of 
---                  [] -> []
---                  ps -> [([ps], RuleDisj)]
-
---delDisj b (Disj l r:fs) = (l:r:delDisj True fs
---delDisj b (f:fs) = f:delDisj fs
---delDisj b [] = [] 
+delDisj (Disj l r:fs) = (l:r:ds,fs') where (ds,fs') = delDisj fs
+delDisj (f:fs)        = (ds,f:fs')   where (ds,fs') = delDisj fs
+delDisj []            = ([],[]) 
 
 t2 = ruleDisj [p,(Disj p q),q,(Not p),(Disj p (Not q))]
+t21 = ruleDisj [p,q,(Not p)]
 
 ruleConj fs = [ (fs'',RuleConj) | fs'' <- [ let fs' = delete f fs in [l:fs', r:fs'] | f@(Conj l r) <- fs]]
 
 t3 = ruleConj [p,(Conj p q),q,(Not p),(Conj p (Not q))]
-
 
 --assumes boxes have been removed
 isSaturated ((Conj _ _):_) = False
@@ -109,25 +103,23 @@ t4_3 = ruleK [Not p] [p,Dia p,Box q,Dia q,Box p]
 
 tactics gs = ruleId +++ ruleConj +++ ruleDisj +++ (ruleK gs)
 
+--http://www.polyomino.f2s.com/david/haskell/gentzen.html
 proof ts fs = --tactics formulas gamma
     let subtrees = [(subtree,rule) | (subgoal,rule) <- ts fs, subtree <- [map (proof ts) subgoal], all isJust subtree]
     in if null subtrees
           then Nothing
        else let (subtree,rule) = head subtrees in Just (Node fs rule (map fromJust $ subtree) Nothing)
 
-fp1 = Not (Impl (Box (Impl p q)) (Impl (Box p) (Box q)))
+fp1 = Impl (Box (Impl p q)) (Impl (Box p) (Box q)) --sat
 tp1 = proof (tactics []) [nnf fp1]
 
-fp2 = (Not(Impl (Box p) p))
+fp2 = Impl (Box p) p --unsat
 tp2 = proof (tactics []) [nnf fp2]
 
-fp3 = (Not(Impl (Box p) (Box (Box p))))
+fp3 = Impl (Box p) (Box (Box p)) --unsat
 tp3 = proof (tactics []) [nnf fp3]
 
 g1 = [Not(Dia p)]
 tp_l = let g = map nnf g1 in proof (tactics g) $ g ++ [nnf q]-- $ map nnf $ g1 ++ [q]
 
-tp = proof (tactics []) [nnf (Box(Disj p (Not p)))]
-
-
-tp4 = proof (tactics []) [nnf (Box(q))]
+tp = proof (tactics []) [nnf (Box(Disj p (Not p)))]--sat
