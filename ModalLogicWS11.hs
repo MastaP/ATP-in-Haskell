@@ -71,17 +71,23 @@ ruleId (p:ps) | isAtom p && (Not p) `elem` ps     = [([],RuleId)]
 
 t1 = ruleId [q,(Not p),p]
 
-ruleConj fs = [([delConj fs], RuleConj)]
+ruleDisj fs = [ ([l:r:delete f fs],RuleDisj) | f@(Disj l r) <- fs]
 
-delConj (Conj l r:fs) = l:r:delConj fs
-delConj (f:fs) = f:delConj fs
-delConj [] = [] 
 
-t2 = ruleConj [p,(Conj p q),q,(Not p),(Conj p (Not q))]
+--ruleDisj fs = case delDisj False fs of 
+--                  [] -> []
+--                  ps -> [([ps], RuleDisj)]
 
-ruleDisj fs = [ (fs'',RuleDisj) | fs'' <- [ let fs' = delete f fs in [l:fs', r:fs'] | f@(Disj l r) <- fs]]
+--delDisj b (Disj l r:fs) = (l:r:delDisj True fs
+--delDisj b (f:fs) = f:delDisj fs
+--delDisj b [] = [] 
 
-t3 = ruleDisj [p,(Disj p q),q,(Not p),(Disj p (Not q))]
+t2 = ruleDisj [p,(Disj p q),q,(Not p),(Disj p (Not q))]
+
+ruleConj fs = [ (fs'',RuleConj) | fs'' <- [ let fs' = delete f fs in [l:fs', r:fs'] | f@(Conj l r) <- fs]]
+
+t3 = ruleConj [p,(Conj p q),q,(Not p),(Conj p (Not q))]
+
 
 --assumes boxes have been removed
 isSaturated ((Conj _ _):_) = False
@@ -89,15 +95,15 @@ isSaturated ((Disj _ _):_) = False
 isSaturated (_:fs)         = isSaturated fs
 isSaturated []             = True
 
-ruleK gs fs = let bs = [ b | Box b <- fs]
+ruleK gs fs = let bs = [ b | Dia b <- fs]
               in if isSaturated fs 
-                    then [ ([fs'],RuleK) | fs' <- [ gs ++ (f : bs) | d@(Dia f) <- fs ]] 
+                    then [ ([fs'],RuleK) | fs' <- [ gs ++ (f : bs) | d@(Box f) <- fs ]] 
                   else []
 
 t4 = ruleK [] [p,Dia p,Box q]
 t4_1 = ruleK [Not (Not p)] [p,Dia q,Box (Not q)]
 t4_2 = ruleK [Not p] [p,Dia p,Box q,Conj p q]
-t4_3 = ruleK [Not p] [p,Dia p,Box q,Dia q]
+t4_3 = ruleK [Not p] [p,Dia p,Box q,Dia q,Box p]
 
 (f +++ g) x = f x ++ g x
 
@@ -118,5 +124,10 @@ tp2 = proof (tactics []) [nnf fp2]
 fp3 = (Not(Impl (Box p) (Box (Box p))))
 tp3 = proof (tactics []) [nnf fp3]
 
-g1 = [Dia p]
-tp_l = proof (tactics g1) $ map nnf $ g1 ++ [q]
+g1 = [Not(Dia p)]
+tp_l = let g = map nnf g1 in proof (tactics g) $ g ++ [nnf q]-- $ map nnf $ g1 ++ [q]
+
+tp = proof (tactics []) [nnf (Box(Disj p (Not p)))]
+
+
+tp4 = proof (tactics []) [nnf (Box(q))]
